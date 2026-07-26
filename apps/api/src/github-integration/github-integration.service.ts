@@ -19,23 +19,15 @@ export class GithubIntegrationService {
     }
 
     // 1. Exchange code for access token
-    let tokenData;
+    let tokenData: any;
     try {
       const tokenRes = await axios.post(
         'https://github.com/login/oauth/access_token',
-        {
-          client_id: clientId,
-          client_secret: clientSecret,
-          code,
-        },
-        {
-          headers: {
-            Accept: 'application/json',
-          },
-        },
+        { client_id: clientId, client_secret: clientSecret, code },
+        { headers: { Accept: 'application/json' } },
       );
       tokenData = tokenRes.data;
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Failed to exchange code with GitHub');
     }
 
@@ -43,11 +35,11 @@ export class GithubIntegrationService {
       throw new BadRequestException(tokenData.error_description || tokenData.error);
     }
 
-    const accessToken = tokenData.access_token;
-    const scopes = tokenData.scope;
+    const accessToken = tokenData.access_token as string;
+    const scopes = tokenData.scope as string;
 
     // 2. Get GitHub user profile
-    let githubProfile;
+    let githubProfile: any;
     try {
       const profileRes = await axios.get('https://api.github.com/user', {
         headers: {
@@ -56,14 +48,25 @@ export class GithubIntegrationService {
         },
       });
       githubProfile = profileRes.data;
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Failed to fetch GitHub profile');
     }
 
-    // 3. Encrypt the access token
+    // 3. Prevent duplicate linking to a different user
+    const existingConnection = await this.prisma.gitHubConnection.findFirst({
+      where: { githubUserId: githubProfile.id.toString() },
+    });
+
+    if (existingConnection && existingConnection.userId !== userId) {
+      throw new BadRequestException(
+        'This GitHub account is already linked to another Bamblu account.',
+      );
+    }
+
+    // 4. Encrypt the access token before storing
     const encryptedToken = this.crypto.encrypt(accessToken);
 
-    // 4. Save to database
+    // 5. Upsert GitHub connection
     await this.prisma.gitHubConnection.upsert({
       where: { userId },
       update: {
@@ -71,6 +74,7 @@ export class GithubIntegrationService {
         username: githubProfile.login,
         accessToken: encryptedToken,
         scopes,
+        updatedAt: new Date(),
       },
       create: {
         userId,
@@ -78,6 +82,18 @@ export class GithubIntegrationService {
         username: githubProfile.login,
         accessToken: encryptedToken,
         scopes,
+      },
+    });
+  }
+
+  /** Fetches a user with their GitHub connections and CF handle for routing decisions. */
+  async getUserWithConnections(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        codeforcesHandle: true,
+        githubConnections: { select: { id: true } },
       },
     });
   }

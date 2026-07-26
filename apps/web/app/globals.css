@@ -4,14 +4,15 @@
 
 @layer base {
   :root {
+    /* Light mode tokens (not used by default — dark is default) */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 214 100% 52%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 188 95% 43%;       /* #06B6D4 — Figma cyan */
+    --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
@@ -22,30 +23,37 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 214 100% 52%;
-    --radius: 0.5rem;
+    --ring: 188 95% 43%;
+    --radius: 0.75rem;
   }
 
-  .dark {
-    --background: 222 47% 5%;
+  /* ── Figma dark theme ─────────────────────────────────────────────────────
+   * Background:  #07111F (deep navy)
+   * Card:        #0F1929 (dark card)
+   * Border:      rgba(255,255,255,0.06)
+   * Primary:     #06B6D4 (cyan)
+   * ─────────────────────────────────────────────────────────────────────── */
+  .dark, :root {
+    --background: 213 68% 8%;       /* #07111F */
     --foreground: 210 40% 98%;
-    --card: 222 47% 7%;
+    --card: 215 47% 10%;            /* #0F1929 */
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 7%;
+    --popover: 215 47% 10%;
     --popover-foreground: 210 40% 98%;
-    --primary: 214 100% 52%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 12%;
+    --primary: 188 95% 43%;         /* #06B6D4 */
+    --primary-foreground: 213 68% 8%;
+    --secondary: 217 32% 14%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 12%;
-    --muted-foreground: 215 20.2% 55%;
-    --accent: 217.2 32.6% 17.5%;
+    --muted: 217 32% 14%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 215 32% 15%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 50%;
+    --destructive: 0 63% 50%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 214 100% 52%;
+    --border: 215 32% 14%;
+    --input: 215 32% 14%;
+    --ring: 188 95% 43%;
+    --radius: 0.75rem;
   }
 }
 
@@ -53,25 +61,46 @@
   * {
     @apply border-border;
   }
+  html {
+    color-scheme: dark;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-[#07111F] text-foreground antialiased;
   }
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* ── Scrollbar ──────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
-::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/40; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-/* Shimmer skeleton */
+/* ── Skeleton shimmer ───────────────────────────────────────────────────────── */
 .skeleton {
-  @apply relative overflow-hidden bg-muted rounded;
+  @apply relative overflow-hidden bg-[#111E35] rounded;
 }
 .skeleton::after {
   content: '';
   @apply absolute inset-0;
-  background: linear-gradient(90deg, transparent 0%, hsl(var(--muted-foreground)/0.08) 50%, transparent 100%);
-  animation: shimmer 1.5s infinite;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.04) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.6s infinite;
   transform: translateX(-100%);
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out both;
 }

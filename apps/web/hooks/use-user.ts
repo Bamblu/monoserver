@@ -13,9 +13,10 @@ export interface UserProfile {
 }
 
 async function fetchUser(): Promise<UserProfile | null> {
-  const res = await fetch('http://localhost:3001/api/auth/me', {
-    credentials: 'include',
-  });
+  // Fetch from the same-origin Next.js proxy route (/api/auth/me)
+  // which internally forwards the cookie to NestJS server-side.
+  // This avoids cross-origin CORS + cookie issues (port 3000 → 3001).
+  const res = await fetch('/api/auth/me');
   if (!res.ok) {
     if (res.status === 401) {
       return null;

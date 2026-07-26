@@ -66,62 +66,79 @@ export const roadmapStatusEnum = pgEnum('roadmap_status', [
 // Schema follows the @auth/drizzle-adapter convention for NextAuth v5
 
 export const users = pgTable(
-  'users',
+  'User',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: text('id').primaryKey(),
     name: text('name'),
     email: text('email').notNull().unique(),
-    emailVerified: timestamp('email_verified', { mode: 'date' }),
+    emailVerified: timestamp('emailVerified', { mode: 'date' }),
     image: text('image'),
-    githubHandle: varchar('github_handle', { length: 39 }).unique(),
-    codeforcesHandle: varchar('codeforces_handle', { length: 24 }).unique(),
-    githubSyncStatus: syncStatusEnum('github_sync_status').notNull().default('idle'),
+    codeforcesHandle: varchar('codeforcesHandle', { length: 24 }).unique(),
     codeforcesSyncStatus: syncStatusEnum('codeforces_sync_status').notNull().default('idle'),
-    githubLastSyncedAt: timestamp('github_last_synced_at', { mode: 'date' }),
     codeforcesLastSyncedAt: timestamp('codeforces_last_synced_at', { mode: 'date' }),
-    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+    createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { mode: 'date' }).notNull().defaultNow(),
   },
   (t) => [
-    index('users_email_idx').on(t.email),
-    index('users_github_handle_idx').on(t.githubHandle),
-    index('users_codeforces_handle_idx').on(t.codeforcesHandle),
+    index('User_email_idx').on(t.email),
+    index('User_codeforcesHandle_idx').on(t.codeforcesHandle),
   ]
 );
 
 export const accounts = pgTable(
-  'accounts',
+  'Account',
   {
-    userId: uuid('user_id')
+    id: text('id').primaryKey(),
+    userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     type: text('type').notNull(),
     provider: text('provider').notNull(),
-    providerAccountId: text('provider_account_id').notNull(),
-    refreshToken: text('refresh_token'),
-    accessToken: text('access_token'),
-    expiresAt: integer('expires_at'),
-    tokenType: text('token_type'),
+    providerAccountId: text('providerAccountId').notNull(),
+    refreshToken: text('refreshToken'),
+    accessToken: text('accessToken'),
+    expiresAt: integer('expiresAt'),
+    tokenType: text('tokenType'),
     scope: text('scope'),
-    idToken: text('id_token'),
-    sessionState: text('session_state'),
+    idToken: text('idToken'),
+    sessionState: text('sessionState'),
   },
   (t) => [
-    primaryKey({ columns: [t.provider, t.providerAccountId] }),
-    index('accounts_user_id_idx').on(t.userId),
+    index('Account_userId_idx').on(t.userId),
   ]
 );
 
 export const sessions = pgTable(
-  'sessions',
+  'Session',
   {
-    sessionToken: text('session_token').primaryKey(),
-    userId: uuid('user_id')
+    id: text('id').primaryKey(),
+    sessionToken: text('sessionToken').notNull().unique(),
+    userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     expires: timestamp('expires', { mode: 'date' }).notNull(),
   },
-  (t) => [index('sessions_user_id_idx').on(t.userId)]
+  (t) => [index('Session_userId_idx').on(t.userId)]
+);
+
+export const githubConnections = pgTable(
+  'GitHubConnection',
+  {
+    id: text('id').primaryKey(),
+    userId: text('userId')
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    githubUserId: text('githubUserId').notNull(),
+    username: text('username').notNull(),
+    accessToken: text('accessToken').notNull(),
+    scopes: text('scopes'),
+    connectedAt: timestamp('connectedAt', { mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('GitHubConnection_userId_idx').on(t.userId),
+  ]
 );
 
 export const verificationTokens = pgTable(
@@ -140,7 +157,7 @@ export const githubActivity = pgTable(
   'github_activity',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     repo: text('repo').notNull(),                     // "owner/repo"
@@ -168,7 +185,7 @@ export const githubStats = pgTable(
   'github_stats',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     totalCommits: integer('total_commits').notNull().default(0),
@@ -197,7 +214,7 @@ export const codeforcesActivity = pgTable(
   'codeforces_activity',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     submissionId: integer('submission_id').notNull(),  // CF submission ID
@@ -229,7 +246,7 @@ export const codeforcesStats = pgTable(
   'codeforces_stats',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     handle: varchar('handle', { length: 24 }).notNull(),
@@ -264,7 +281,7 @@ export const skills = pgTable(
   'skills',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 100 }).notNull(),
@@ -286,7 +303,7 @@ export const skillGaps = pgTable(
   'skill_gaps',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     skillName: varchar('skill_name', { length: 100 }).notNull(),
@@ -308,7 +325,7 @@ export const roadmaps = pgTable(
   'roadmaps',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
+    userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
@@ -377,6 +394,7 @@ export const jobs = pgTable(
 export const usersRelations = relations(users, ({ many, one: _one }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
+  githubConnections: many(githubConnections),
   githubActivity: many(githubActivity),
   githubStats: many(githubStats),
   codeforcesActivity: many(codeforcesActivity),
@@ -388,6 +406,10 @@ export const usersRelations = relations(users, ({ many, one: _one }) => ({
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
   user: one(users, { fields: [accounts.userId], references: [users.id] }),
+}));
+
+export const githubConnectionsRelations = relations(githubConnections, ({ one }) => ({
+  user: one(users, { fields: [githubConnections.userId], references: [users.id] }),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -437,6 +459,9 @@ export type NewAccount = typeof accounts.$inferInsert;
 
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
+
+export type GitHubConnection = typeof githubConnections.$inferSelect;
+export type NewGitHubConnection = typeof githubConnections.$inferInsert;
 
 export type GitHubActivity = typeof githubActivity.$inferSelect;
 export type NewGitHubActivity = typeof githubActivity.$inferInsert;

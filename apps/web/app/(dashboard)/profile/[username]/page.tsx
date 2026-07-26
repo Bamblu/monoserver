@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
-import { users, githubStats, codeforcesStats } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { users, githubStats, codeforcesStats, githubConnections, skills } from '@/lib/db/schema';
+import { eq, desc, sql } from 'drizzle-orm';
 import { UserAvatar } from '@/components/shared/UserAvatar';
-import { SkillBadge } from '@/components/shared/SkillBadge';
-import { RatingChart } from '@/components/dashboard/RatingChart';
+import { StatCard } from '@/components/dashboard/StatCard';
+import { SkillRadar } from '@/components/dashboard/SkillRadar';
 import { ActivityHeatmap } from '@/components/dashboard/ActivityHeatmap';
 import { getCFRankColor } from '@bamblu/utils';
 
@@ -14,20 +14,28 @@ interface ProfilePageProps {
 }
 
 export async function generateMetadata({ params }: ProfilePageProps): Promise<Metadata> {
-  return { title: `@${params.username}` };
+  return { title: `@${params.username} — Profile` };
 }
 
 export default async function ProfilePage({ params }: ProfilePageProps) {
   const { username } = params;
 
+  // Resolve user id from GitHub username (case-insensitive)
+  const ghConnection = await db.query.githubConnections.findFirst({
+    where: eq(sql`lower(${githubConnections.username})`, username.toLowerCase()),
+    columns: { userId: true },
+  });
+
+  if (!ghConnection) notFound();
+
   const user = await db.query.users.findFirst({
-    where: eq(users.githubHandle, username),
-    with: { skills: true },
+    where: eq(users.id, ghConnection.userId),
   });
 
   if (!user) notFound();
 
-  const [ghStats, cfStats] = await Promise.all([
+  // Load stats and skills
+  const [ghStatsRow, cfStatsRow, userSkills] = await Promise.all([
     db.query.githubStats.findFirst({
       where: eq(githubStats.userId, user.id),
       orderBy: desc(githubStats.snapshotAt),
@@ -36,66 +44,75 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       where: eq(codeforcesStats.userId, user.id),
       orderBy: desc(codeforcesStats.snapshotAt),
     }),
+    db.query.skills.findMany({
+      where: eq(skills.userId, user.id),
+    }),
   ]);
 
-  const cfRankColor = getCFRankColor(cfStats?.rank ?? '');
+  const cfRankColor = getCFRankColor(cfStatsRow?.rank ?? '');
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-start gap-6">
+    <div className="space-y-6 animate-fade-in">
+      {/* ── Header Card ──────────────────────────────────────────────────────── */}
+      <div className="rounded-xl bg-[#0F1929] border border-white/[0.06] p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-5 sm:gap-6">
         <UserAvatar
           id="profile-avatar"
           src={user.image}
           name={user.name ?? username}
-          size="lg"
+          size="xl"
+          className="ring-2 ring-white/10"
         />
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">{user.name ?? username}</h1>
-          <p className="text-muted-foreground">@{username}</p>
-          {cfStats && (
-            <span
-              id="profile-cf-rank-badge"
-              className="inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full border"
-              style={{ color: cfRankColor, borderColor: cfRankColor }}
-            >
-              {cfStats.rank} · {cfStats.rating}
-            </span>
+        
+        <div className="flex-1 flex flex-col items-center sm:items-start text-center sm:text-left gap-1 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+            {user.name ?? username}
+          </h1>
+          
+          <p className="text-slate-400 text-sm font-medium">
+            @{username} · Codeforces
+          </p>
+          
+          {cfStatsRow && (
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-1 text-xs font-semibold mt-2 text-[#06B6D4]">
+              <span>Rating: {cfStatsRow.rating}</span>
+              <span className="text-slate-600">•</span>
+              <span style={{ color: cfRankColor }}>Rank: {cfStatsRow.rank}</span>
+              <span className="text-slate-600">•</span>
+              <span>{cfStatsRow.solvedCount} Problems Solved</span>
+            </div>
           )}
-        </div>
-        {/* Embeddable card link */}
-        <div className="ml-auto">
-          <a
-            id="profile-embed-link"
-            href={`/api/card/${username}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-          >
-            Get embed card ↗
-          </a>
         </div>
       </div>
 
-      {/* Heatmap */}
-      <ActivityHeatmap heatmapData={ghStats?.contributionHeatmap as Record<string, number> | undefined} />
+      {/* ── Stat Cards Grid ──────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard
+          id="profile-problems-solved"
+          label="Problems Solved"
+          value={cfStatsRow?.solvedCount ?? 0}
+        />
+        <StatCard
+          id="profile-active-days"
+          label="Active Days"
+          value={ghStatsRow?.contributionStreak ?? 0}
+        />
+        <StatCard
+          id="profile-contest-rating"
+          label="Contest Rating"
+          value={cfStatsRow?.rating ?? 0}
+        />
+        <StatCard
+          id="profile-github-contrib"
+          label="GitHub Contrib."
+          value={ghStatsRow?.totalCommits ?? 0}
+        />
+      </div>
 
-      {/* Rating chart */}
-      {cfStats && (
-        <RatingChart ratingHistory={(cfStats.ratingHistory as object[] | null) ?? []} />
-      )}
-
-      {/* Skills */}
-      {user.skills && user.skills.length > 0 && (
-        <section aria-label="Skills">
-          <h2 className="text-lg font-semibold mb-3">Skills</h2>
-          <div className="flex flex-wrap gap-2">
-            {user.skills.map((skill) => (
-              <SkillBadge key={skill.id} skill={skill} />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ── Charts Grid ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <SkillRadar skills={userSkills} />
+        <ActivityHeatmap heatmapData={ghStatsRow?.contributionHeatmap ?? undefined} />
+      </div>
     </div>
   );
 }

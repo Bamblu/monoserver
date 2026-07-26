@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { users, githubStats, codeforcesStats } from '@/lib/db/schema';
+import { users, githubStats, codeforcesStats, githubConnections } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { getCache, setCache, cacheKeys, TTL } from '@/lib/redis';
 import { getCFRankColor, getLanguageColor } from '@bamblu/utils';
 
 export const runtime = 'edge';
 
-// ─── SVG Card Dimensions ──────────────────────────────────────────────────────
 const W = 495;
 const H = 195;
 
@@ -41,15 +40,31 @@ export async function GET(
     });
   }
 
-  const user = await db.query.users.findFirst({ where: eq(users.githubHandle, handle) });
+  // Cards are identified by GitHub username — look up via githubConnections table
+  const ghConnection = await db.query.githubConnections.findFirst({
+    where: eq(githubConnections.username, handle),
+    columns: { userId: true },
+  });
+
+  const user = ghConnection
+    ? await db.query.users.findFirst({
+        where: eq(users.id, ghConnection.userId),
+      })
+    : null;
 
   let ghStatsRow = null;
   let cfStatsRow = null;
 
   if (user) {
     [ghStatsRow, cfStatsRow] = await Promise.all([
-      db.query.githubStats.findFirst({ where: eq(githubStats.userId, user.id), orderBy: desc(githubStats.snapshotAt) }),
-      db.query.codeforcesStats.findFirst({ where: eq(codeforcesStats.userId, user.id), orderBy: desc(codeforcesStats.snapshotAt) }),
+      db.query.githubStats.findFirst({
+        where: eq(githubStats.userId, user.id),
+        orderBy: desc(githubStats.snapshotAt),
+      }),
+      db.query.codeforcesStats.findFirst({
+        where: eq(codeforcesStats.userId, user.id),
+        orderBy: desc(codeforcesStats.snapshotAt),
+      }),
     ]);
   }
 
@@ -73,14 +88,10 @@ export async function GET(
     .accent { fill: ${colors.accent}; }
   </style>
   <rect width="${W}" height="${H}" rx="12" fill="${colors.bg}" stroke="${colors.border}" stroke-width="1.5"/>
-  <!-- Accent bar -->
   <rect width="4" height="${H}" rx="2" fill="${colors.accent}"/>
-  <!-- Header -->
   <text x="24" y="38" class="title">${displayName}</text>
   <text x="24" y="58" class="sub">@${escXml(handle)} · Bamblu</text>
-  <!-- Divider -->
   <line x1="24" y1="72" x2="${W - 24}" y2="72" stroke="${colors.border}" stroke-width="1"/>
-  <!-- GitHub Stats -->
   <text x="24" y="96" class="label">GitHub</text>
   <text x="24" y="116" class="value">${ghCommits.toLocaleString()}</text>
   <text x="24" y="131" class="label">commits</text>
@@ -88,17 +99,13 @@ export async function GET(
   <text x="110" y="131" class="label">repos</text>
   <text x="196" y="116" class="value">${ghStreak}d</text>
   <text x="196" y="131" class="label">streak</text>
-  <!-- Language badge -->
   <circle cx="292" cy="112" r="5" fill="${langColor}"/>
   <text x="302" y="117" class="label">${escXml(topLang)}</text>
-  <!-- Divider vertical -->
   <line x1="355" y1="80" x2="355" y2="155" stroke="${colors.border}" stroke-width="1"/>
-  <!-- Codeforces Stats -->
   <text x="375" y="96" class="label">Codeforces</text>
   <text x="375" y="116" class="value" style="fill:${cfColor}">${cfRating}</text>
   <text x="375" y="131" class="label" style="fill:${cfColor}">${escXml(cfRank)}</text>
   <text x="375" y="148" class="label">@${escXml(cfHandle)}</text>
-  <!-- Footer -->
   <text x="${W - 24}" y="${H - 12}" class="label" text-anchor="end">bamblu.dev</text>
 </svg>`;
 

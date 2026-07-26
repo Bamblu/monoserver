@@ -18,7 +18,7 @@ export function AuthCard({ error, callbackUrl, className }: AuthCardProps) {
     >
       {/* Header */}
       <div className="mb-7 w-full space-y-1.5 text-center">
-        <h2 className="text-3xl font-bold tracking-tight text-white">Welcome Back</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-white">Welcome</h2>
         <p className="text-lg text-slate-400">Log in to your account</p>
       </div>
 

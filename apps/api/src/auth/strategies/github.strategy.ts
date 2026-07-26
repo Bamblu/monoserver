@@ -8,8 +8,8 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     super({
       clientID: process.env.GITHUB_CLIENT_ID || 'placeholder',
       clientSecret: process.env.GITHUB_CLIENT_SECRET || 'placeholder',
-      callbackURL: 'http://localhost:3001/api/auth/github/callback',
-      scope: ['user:email'],
+      callbackURL: `${process.env.API_URL || 'http://localhost:3001'}/api/auth/github/callback`,
+      scope: ['public_repo', 'read:user', 'user:email'],
     });
   }
 
@@ -17,10 +17,11 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     const { id, displayName, username, emails, photos } = profile;
     const user = {
       provider: 'github',
-      providerAccountId: id,
-      email: emails && emails.length > 0 ? emails[0].value : null,
+      providerAccountId: id.toString(),
+      email: emails && emails.length > 0 ? emails[0].value : `${id}@github.placeholder.com`,
       name: displayName || username,
       picture: photos && photos.length > 0 ? photos[0].value : null,
+      username: username,
       accessToken,
     };
     done(null, user);

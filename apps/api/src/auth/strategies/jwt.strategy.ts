@@ -9,11 +9,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private prisma: PrismaService) {
     super({
       jwtFromRequest: (req: Request) => {
-        let token = null;
         if (req && req.cookies) {
-          token = req.cookies['auth_token'];
+          return req.cookies['auth_token'] ?? null;
         }
-        return token;
+        return null;
       },
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_SECRET || 'dev-secret-change-me-in-production',
@@ -29,15 +28,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             id: true,
             username: true,
             connectedAt: true,
-          }
-        }
-      }
+          },
+        },
+      },
     });
 
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    // Attach login provider from JWT so controllers can use it
+    return { ...user, loginProvider: payload.provider };
   }
 }

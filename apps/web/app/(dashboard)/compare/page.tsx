@@ -1,42 +1,72 @@
 import type { Metadata } from 'next';
-import { SearchBar } from '@/components/shared/SearchBar';
+import { getUser as auth } from '@/lib/user';
+import { db } from '@/lib/db';
+import { users, githubConnections, githubStats, codeforcesStats, skills } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { CompareShell } from '@/components/compare/CompareShell';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Compare Developers' };
+export const metadata: Metadata = { title: 'Compare Developers — Bamblu' };
 
-export default function ComparePage() {
-  return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold">Compare Developers</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Benchmark yourself against peers on GitHub activity and Codeforces rating.
-        </p>
-      </div>
+export default async function ComparePage() {
+  const session = await auth();
+  if (!session) redirect('/login');
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label htmlFor="compare-user-a" className="text-sm font-medium">
-            Developer A
-          </label>
-          <SearchBar id="compare-user-a" placeholder="GitHub handle…" />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="compare-user-b" className="text-sm font-medium">
-            Developer B
-          </label>
-          <SearchBar id="compare-user-b" placeholder="GitHub handle…" />
-        </div>
-      </div>
+  const userId = session.id;
 
-      {/* Comparison panel — populated client-side via React Query */}
-      <div
-        id="compare-results-panel"
-        className="rounded-2xl border border-border bg-card p-8 min-h-[300px] flex items-center justify-center"
-      >
-        <p className="text-muted-foreground text-sm">
-          Enter two GitHub handles above to start comparing.
-        </p>
-      </div>
-    </div>
-  );
+  // Fetch logged in user's details and connections
+  const [user, ghConnection] = await Promise.all([
+    db.query.users.findFirst({
+      where: eq(users.id, userId),
+    }),
+    db.query.githubConnections.findFirst({
+      where: eq(githubConnections.userId, userId),
+      columns: { username: true },
+    }),
+  ]);
+
+  if (!user || !ghConnection) {
+    // If not onboarded (missing github connection), redirect back to onboarding
+    redirect('/onboarding');
+  }
+
+  // Load stats and skills
+  const [ghStatsRow, cfStatsRow, userSkills] = await Promise.all([
+    db.query.githubStats.findFirst({
+      where: eq(githubStats.userId, userId),
+      orderBy: desc(githubStats.snapshotAt),
+    }),
+    db.query.codeforcesStats.findFirst({
+      where: eq(codeforcesStats.userId, userId),
+      orderBy: desc(codeforcesStats.snapshotAt),
+    }),
+    db.query.skills.findMany({
+      where: eq(skills.userId, userId),
+    }),
+  ]);
+
+  const user1 = {
+    name: user.name || ghConnection.username,
+    username: ghConnection.username,
+    github: ghStatsRow
+      ? {
+          totalCommits: ghStatsRow.totalCommits,
+          contributionStreak: ghStatsRow.contributionStreak,
+        }
+      : null,
+    codeforces: cfStatsRow
+      ? {
+          rating: cfStatsRow.rating,
+          rank: cfStatsRow.rank ?? '',
+          solvedCount: cfStatsRow.solvedCount,
+        }
+      : null,
+    skills: userSkills.map((s) => ({
+      name: s.name,
+      level: s.level,
+      category: s.category,
+    })),
+  };
+
+  return <CompareShell user1={user1} />;
 }

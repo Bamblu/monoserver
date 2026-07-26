@@ -15,7 +15,9 @@ async function checkRateLimit(ip: string): Promise<boolean> {
   const windowMs = 60_000; // 1 minute
   const limit = 120;       // 120 requests per minute
 
-  const pipeline = (await import('@/lib/redis')).redis.pipeline();
+  const lib = await import('@/lib/redis');
+  if (!lib.redis) return true; // redis placeholder bypass
+  const pipeline = lib.redis.pipeline();
   pipeline.zremrangebyscore(key, 0, now - windowMs);
   pipeline.zadd(key, { score: now, member: `${now}` });
   pipeline.zcard(key);

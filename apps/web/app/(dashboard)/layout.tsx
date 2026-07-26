@@ -1,7 +1,6 @@
 import { getUser as auth } from '@/lib/user';
 import { redirect } from 'next/navigation';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { Navbar } from '@/components/layout/Navbar';
+import { DashboardNavbar } from '@/components/layout/DashboardNavbar';
 
 export default async function DashboardLayout({
   children,
@@ -11,18 +10,18 @@ export default async function DashboardLayout({
   const session = await auth();
   if (!session) redirect('/login');
 
+  // Extract GitHub username if connected
+  const githubUsername = session.githubConnections?.[0]?.username ?? null;
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar user={session} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Navbar user={session} />
-        <main
-          id="main-content"
-          className="flex-1 overflow-y-auto p-6 lg:p-8"
-        >
-          {children}
-        </main>
-      </div>
+    <div className="min-h-screen bg-[#07111F] flex flex-col">
+      <DashboardNavbar user={session} githubUsername={githubUsername} />
+      <main
+        id="main-content"
+        className="flex-1 w-full max-w-[1360px] mx-auto px-6 py-6 flex flex-col justify-between"
+      >
+        {children}
+      </main>
     </div>
   );
 }

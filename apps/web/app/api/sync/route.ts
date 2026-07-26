@@ -5,6 +5,7 @@ import { acquireLock, releaseLock, cacheKeys, deleteCache } from '@/lib/redis';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { integrationService } from '@/services/integrationService';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // seconds — Vercel Pro limit
@@ -48,8 +49,8 @@ export async function POST(request: NextRequest) {
         })
         .where(eq(users.id, userId));
 
-      // TODO: Trigger actual sync via integrationService — wired in Phase 2
-      // await integrationService.sync(userId, source);
+      // Trigger actual sync via integrationService
+      await integrationService.sync(userId, source);
 
       // Invalidate cached stats
       await deleteCache(cacheKeys.userStats(userId));
