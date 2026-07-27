@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getUser } from '@/lib/user';
 import { NextResponse } from 'next/server';
 

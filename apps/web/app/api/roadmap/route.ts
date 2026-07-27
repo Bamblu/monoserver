@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser as auth } from '@/lib/user';
 import { GenerateRoadmapSchema } from '@bamblu/validations';
