@@ -4,8 +4,6 @@ import * as React from 'react';
 import { cn } from '@bamblu/utils';
 import { Loader2 } from 'lucide-react';
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
 function GoogleIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={cn('h-5 w-5', className)} aria-hidden="true">
@@ -63,70 +61,49 @@ const providerConfig: Record<Provider, {
   },
 };
 
+function getApiUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:3001/api';
+  }
+  return 'https://monoserver-nmp0.onrender.com/api';
+}
+
 export function SocialAuthButton({
   provider,
-  callbackUrl,
   isLoading: externalLoading,
   className,
 }: SocialAuthButtonProps) {
   const { label, icon: Icon, hoverClass } = providerConfig[provider];
   const [isPending, setIsPending] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   const isDisabled = isPending || !!externalLoading;
+  const targetUrl = `${getApiUrl()}/auth/${provider}`;
 
-  async function handleClick() {
-    if (isDisabled) return;
-
-    setError(null);
-    setIsPending(true);
-
-    try {
-      // NEXT_PUBLIC_API_URL must be set to http://localhost:3001/api (local) 
-      // or https://monoserver-nmp0.onrender.com/api (production)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-      if (!apiUrl) {
-        console.error('[SocialAuthButton] NEXT_PUBLIC_API_URL is not defined');
-        setError('Configuration error. Please contact support.');
-        setIsPending(false);
-        return;
-      }
-
-      // Construct the redirect URL: {apiUrl}/auth/{provider}
-      // e.g., http://localhost:3001/api/auth/google
-      const redirectUrl = `${apiUrl}/auth/${provider}`;
-
-      console.log('[SocialAuthButton] OAuth redirect:', { provider, redirectUrl });
-
-      // Hard redirect — browser follows the OAuth flow
-      window.location.href = redirectUrl;
-
-      // Keep spinner going during redirect
-      // (setIsPending(false) NOT called — page navigates away)
-    } catch (err) {
-      console.error('[SocialAuthButton] Error during OAuth redirect:', err);
-      setError('Something went wrong. Please try again.');
-      setIsPending(false);
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isDisabled) {
+      e.preventDefault();
+      return;
     }
-  }
+    setIsPending(true);
+  };
 
   return (
     <div className="w-full">
-      <button
+      <a
         id={`social-auth-${provider}-btn`}
-        type="button"
-        disabled={isDisabled}
+        href={targetUrl}
         onClick={handleClick}
         aria-label={label}
-        aria-busy={isPending}
         className={cn(
           'flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3.5 text-sm font-medium text-slate-200',
           'transition-all duration-200',
           hoverClass,
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
           'active:scale-[0.98]',
-          'disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed',
+          isDisabled ? 'pointer-events-none opacity-50 cursor-not-allowed' : 'cursor-pointer',
           className,
         )}
       >
@@ -136,16 +113,7 @@ export function SocialAuthButton({
           <Icon />
         )}
         <span>{isPending ? 'Redirecting…' : label}</span>
-      </button>
-
-      {error && (
-        <p
-          role="alert"
-          className="mt-2 text-xs text-red-400 text-center"
-        >
-          {error}
-        </p>
-      )}
+      </a>
     </div>
   );
 }
