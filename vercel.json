@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "corepack enable && yarn install",
+  "buildCommand": "npx turbo run build",
+  "framework": "nextjs"
+}
