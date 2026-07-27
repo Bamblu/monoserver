@@ -6,11 +6,13 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
-  getRoot(@Res() res: Response) {
-    const webUrl = process.env.WEB_URL || 'http://localhost:3000';
-    return res.redirect(webUrl);
-  }
+@Get()
+getRoot(@Res() res: Response) {
+  console.log('WEB_URL =', process.env.WEB_URL);
+
+  const webUrl = process.env.WEB_URL || 'http://localhost:3000';
+  return res.redirect(webUrl);
+}
 
   @Get('health')
   getHealth(): { status: string; message: string } {
