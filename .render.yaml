@@ -2,19 +2,25 @@ services:
   - type: web
     name: bamblu-api
     runtime: node
+
     buildCommand: |
       corepack prepare yarn@4.5.3 --activate
       corepack yarn install --immutable
 
       cd apps/api
 
-      echo "=== Before generate ==="
-      ls -R src/generated || true
+      echo "===== Current directory ====="
+      pwd
+
+      echo "===== Before prisma generate ====="
+      find src/generated -maxdepth 2 -type f || true
 
       npx prisma generate
 
-      echo "=== After generate ==="
-      ls -R src/generated
+      echo "===== After prisma generate ====="
+      find src/generated -maxdepth 2 -type f || true
 
+      echo "===== Building ====="
       yarn build
-    startCommand: node apps/api/dist/main.js
+
+    startCommand: node dist/main.js
