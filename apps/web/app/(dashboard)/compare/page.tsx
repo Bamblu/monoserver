@@ -1,7 +1,13 @@
 import type { Metadata } from 'next';
 import { getUser as auth } from '@/lib/user';
 import { db } from '@/lib/db';
-import { users, githubConnections, githubStats, codeforcesStats, skills } from '@/lib/db/schema';
+import {
+  users,
+  githubConnections,
+  githubStats,
+  codeforcesStats,
+  skills,
+} from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { CompareShell } from '@/components/compare/CompareShell';
 import { redirect } from 'next/navigation';
@@ -14,23 +20,21 @@ export default async function ComparePage() {
 
   const userId = session.id;
 
-  // Fetch logged in user's details and connections
+  // Fetch the authenticated user's details and GitHub connection
   const [user, ghConnection] = await Promise.all([
-    db.query.users.findFirst({
-      where: eq(users.id, userId),
-    }),
+    db.query.users.findFirst({ where: eq(users.id, userId) }),
     db.query.githubConnections.findFirst({
       where: eq(githubConnections.userId, userId),
       columns: { username: true },
     }),
   ]);
 
+  // Require onboarding to be complete
   if (!user || !ghConnection) {
-    // If not onboarded (missing github connection), redirect back to onboarding
     redirect('/onboarding');
   }
 
-  // Load stats and skills
+  // Load the authenticated user's own stats for the left panel
   const [ghStatsRow, cfStatsRow, userSkills] = await Promise.all([
     db.query.githubStats.findFirst({
       where: eq(githubStats.userId, userId),
@@ -40,13 +44,11 @@ export default async function ComparePage() {
       where: eq(codeforcesStats.userId, userId),
       orderBy: desc(codeforcesStats.snapshotAt),
     }),
-    db.query.skills.findMany({
-      where: eq(skills.userId, userId),
-    }),
+    db.query.skills.findMany({ where: eq(skills.userId, userId) }),
   ]);
 
   const user1 = {
-    name: user.name || ghConnection.username,
+    name: user.name ?? ghConnection.username,
     username: ghConnection.username,
     github: ghStatsRow
       ? {
@@ -57,7 +59,7 @@ export default async function ComparePage() {
     codeforces: cfStatsRow
       ? {
           rating: cfStatsRow.rating,
-          rank: cfStatsRow.rank ?? '',
+          rank: cfStatsRow.rank ?? 'unrated',
           solvedCount: cfStatsRow.solvedCount,
         }
       : null,

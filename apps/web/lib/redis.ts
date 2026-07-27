@@ -31,6 +31,14 @@ export const cacheKeys = {
   card: (handle: string, theme: string) => `bamblu:card:${handle}:${theme}` as const,
   rateLimit: (ip: string) => `bamblu:rl:${ip}` as const,
   syncLock: (userId: string, source: string) => `bamblu:lock:sync:${userId}:${source}` as const,
+  // ─── Compare / External Profile Search ──────────────────────────────────────
+  ghSearchSuggestions: (q: string) => `bamblu:gh:search:${q.toLowerCase()}` as const,
+  ghUserProfile: (username: string) => `bamblu:gh:profile:${username.toLowerCase()}` as const,
+  ghUserRepos: (username: string) => `bamblu:gh:repos:${username.toLowerCase()}` as const,
+  cfUserProfile: (handle: string) => `bamblu:cf:profile:${handle.toLowerCase()}` as const,
+  cfUserSubmissions: (handle: string) => `bamblu:cf:subs:${handle.toLowerCase()}` as const,
+  compareResult: (username: string) => `bamblu:compare:${username.toLowerCase()}` as const,
+  compareRateLimit: (ip: string) => `bamblu:rl:compare:${ip}` as const,
 } as const;
 
 // ─── TTL Constants (seconds) ──────────────────────────────────────────────────

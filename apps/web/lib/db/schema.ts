@@ -489,3 +489,49 @@ export type NewRoadmapStep = typeof roadmapSteps.$inferInsert;
 
 export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
+
+// ─── CF Link Status Enum ─────────────────────────────────────────────────────
+
+export const cfLinkStatusEnum = pgEnum('cf_link_status', [
+  'linked',
+  'not_linked',
+  'unknown',
+]);
+
+// ─── External GitHub Profile Cache ───────────────────────────────────────────
+// Stores public GitHub profiles fetched for Compare page.
+// These are NOT authenticated Bamblu users — just cached external profiles.
+
+export const ghProfileCache = pgTable(
+  'gh_profile_cache',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    githubUsername: text('github_username').notNull().unique(),
+    githubUserId: text('github_user_id').notNull(),
+    displayName: text('display_name'),
+    avatarUrl: text('avatar_url'),
+    bio: text('bio'),
+    location: text('location'),
+    website: text('website'),
+    publicEmail: text('public_email'),
+    followers: integer('followers').notNull().default(0),
+    following: integer('following').notNull().default(0),
+    publicRepos: integer('public_repos').notNull().default(0),
+    /** Full GitHub API response + computed stats */
+    profileData: jsonb('profile_data').$type<Record<string, unknown>>().default({}),
+    /** Inferred Codeforces handle (if confidence >= threshold) */
+    cfHandle: text('cf_handle'),
+    cfLinkConfidence: integer('cf_link_confidence').notNull().default(0),
+    cfLinkStatus: cfLinkStatusEnum('cf_link_status').notNull().default('unknown'),
+    cachedAt: timestamp('cached_at', { mode: 'date' }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
+  },
+  (t) => [
+    index('gh_profile_cache_username_idx').on(t.githubUsername),
+    index('gh_profile_cache_expires_at_idx').on(t.expiresAt),
+  ]
+);
+
+export type GhProfileCache = typeof ghProfileCache.$inferSelect;
+export type NewGhProfileCache = typeof ghProfileCache.$inferInsert;
+

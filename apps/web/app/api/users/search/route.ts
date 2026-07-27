@@ -1,67 +1,67 @@
+/**
+ * GET /api/users/search?username={username}
+ *
+ * Legacy search endpoint — now delegates to compare/resolve for full profile data.
+ * Kept for backwards compatibility with any existing callers.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser as auth } from '@/lib/user';
-import { db } from '@/lib/db';
-import { githubConnections, users, githubStats, codeforcesStats, skills } from '@/lib/db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { resolveCompareProfile } from '@/lib/services/externalProfileService';
+import { GitHubNotFoundError, GitHubRateLimitError } from '@/lib/services/githubSearchService';
 
 export const runtime = 'nodejs';
 
+const GH_USERNAME_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
+
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.id) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-  }
+  const session = await auth().catch(() => null);
 
   const { searchParams } = new URL(request.url);
-  const username = searchParams.get('username');
+  const username = (searchParams.get('username') ?? '').trim();
 
-  if (!username) {
-    return NextResponse.json({ success: false, error: 'Missing username parameter' }, { status: 400 });
+  if (!username || !GH_USERNAME_RE.test(username)) {
+    return NextResponse.json({ success: false, error: 'Invalid username' }, { status: 400 });
   }
 
   try {
-    // Resolve user by github connection username (case-insensitive)
-    const connection = await db.query.githubConnections.findFirst({
-      where: eq(sql`lower(${githubConnections.username})`, username.toLowerCase()),
-      columns: { userId: true },
-    });
+    const profile = await resolveCompareProfile(username);
 
-    if (!connection) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
-    }
-
-    const userId = connection.userId;
-
-    const [userRecord, ghStats, cfStats, userSkills] = await Promise.all([
-      db.query.users.findFirst({
-        where: eq(users.id, userId),
-        columns: { name: true },
-      }),
-      db.query.githubStats.findFirst({
-        where: eq(githubStats.userId, userId),
-        orderBy: desc(githubStats.snapshotAt),
-      }),
-      db.query.codeforcesStats.findFirst({
-        where: eq(codeforcesStats.userId, userId),
-        orderBy: desc(codeforcesStats.snapshotAt),
-      }),
-      db.query.skills.findMany({
-        where: eq(skills.userId, userId),
-      }),
-    ]);
-
+    // Return in the shape the original CompareShell expected
     return NextResponse.json({
       success: true,
       data: {
-        name: userRecord?.name || username,
-        username,
-        github: ghStats ?? null,
-        codeforces: cfStats ?? null,
-        skills: userSkills,
+        name: profile.displayName ?? profile.login,
+        username: profile.login,
+        github: profile.github
+          ? {
+              totalCommits: profile.github.totalCommits,
+              contributionStreak: profile.github.contributionStreak,
+            }
+          : null,
+        codeforces: profile.codeforces
+          ? {
+              rating: profile.codeforces.rating,
+              rank: profile.codeforces.rank,
+              solvedCount: profile.codeforces.solvedCount,
+            }
+          : null,
+        skills: profile.skills,
       },
     });
   } catch (err) {
-    console.error('[search-user] error:', err);
-    return NextResponse.json({ success: false, error: 'Failed to fetch user data' }, { status: 500 });
+    if (err instanceof GitHubNotFoundError) {
+      return NextResponse.json(
+        { success: false, error: `GitHub user "${username}" not found.` },
+        { status: 404 }
+      );
+    }
+    if (err instanceof GitHubRateLimitError) {
+      return NextResponse.json(
+        { success: false, error: 'Rate limited. Please try again in a moment.' },
+        { status: 429 }
+      );
+    }
+    return NextResponse.json({ success: false, error: 'Failed to load user.' }, { status: 500 });
   }
 }

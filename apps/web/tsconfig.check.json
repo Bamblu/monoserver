@@ -1,0 +1,1 @@
+{"extends": "./tsconfig.json", "include": ["lib/types/compare.ts", "lib/services/githubSearchService.ts", "lib/services/codeforcesLinkService.ts", "lib/services/externalProfileService.ts", "app/api/compare/search/route.ts", "app/api/compare/resolve/route.ts"], "compilerOptions": {"noEmit": true, "skipLibCheck": true}}
