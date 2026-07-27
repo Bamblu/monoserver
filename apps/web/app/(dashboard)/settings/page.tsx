@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import type { Metadata } from 'next';
 import { getUser as auth } from '@/lib/user';
 import { db } from '@/lib/db';

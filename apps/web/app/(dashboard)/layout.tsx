@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { getUser as auth } from '@/lib/user';
 import { redirect } from 'next/navigation';
 import { DashboardNavbar } from '@/components/layout/DashboardNavbar';
