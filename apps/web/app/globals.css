@@ -63,6 +63,8 @@
   }
   html {
     color-scheme: dark;
+    scroll-behavior: smooth;
+    scroll-padding-top: 78px;
   }
   body {
     @apply bg-[#07111F] text-foreground antialiased;

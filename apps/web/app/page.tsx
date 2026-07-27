@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import TrustedBySection from '@/components/shared/TrustedBySection';
-import DeveloperFeaturesSection from '@/components/shared/DeveloperFeaturesSection';
+import FeaturesSection from '@/components/shared/FeaturesSection';
+import AnalyticsSection from '@/components/shared/AnalyticsSection';
+import IntegrationsSection from '@/components/shared/IntegrationsSection';
+import HowItWorksSection from '@/components/shared/HowItWorksSection';
+import AboutSection from '@/components/shared/AboutSection';
 
 // ─── Hero mock data (static preview panels) ───────────────────────────────────
 
@@ -52,7 +55,7 @@ export default function LandingPage() {
       <Navbar />
 
       {/* ── Hero ──────────────────────────────────────────────────────────────── */}
-      <section className="flex-1 w-full px-6 lg:px-20 py-20 lg:py-28">
+      <section id="hero" className="flex-1 w-full px-6 lg:px-20 py-20 lg:py-28">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
 
           {/* Left: copy */}
@@ -143,11 +146,20 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Trusted by ────────────────────────────────────────────────────────── */}
-      <TrustedBySection />
+      {/* ── Features ───────────────────────────────────────────────────────────── */}
+      <FeaturesSection />
 
-      {/* ── Features ──────────────────────────────────────────────────────────── */}
-      <DeveloperFeaturesSection />
+      {/* ── Analytics ──────────────────────────────────────────────────────────── */}
+      <AnalyticsSection />
+
+      {/* ── Integrations ───────────────────────────────────────────────────────── */}
+      <IntegrationsSection />
+
+      {/* ── How It Works ───────────────────────────────────────────────────────── */}
+      <HowItWorksSection />
+
+      {/* ── About ──────────────────────────────────────────────────────────────── */}
+      <AboutSection />
 
       {/* ── Footer ────────────────────────────────────────────────────────────── */}
       <Footer />

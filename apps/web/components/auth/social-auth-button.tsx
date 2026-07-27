@@ -46,12 +46,21 @@ interface SocialAuthButtonProps {
   className?: string;
 }
 
-const providerConfig: Record<
-  Provider,
-  { label: string; icon: React.FC<{ className?: string }> }
-> = {
-  google: { label: 'Continue with Google', icon: GoogleIcon },
-  github: { label: 'Continue with GitHub', icon: GitHubIcon },
+const providerConfig: Record<Provider, {
+  label: string;
+  icon: React.FC<{ className?: string }>;
+  hoverClass: string;
+}> = {
+  google: {
+    label: 'Continue with Google',
+    icon: GoogleIcon,
+    hoverClass: 'hover:border-blue-500/40 hover:bg-blue-500/5',
+  },
+  github: {
+    label: 'Continue with GitHub',
+    icon: GitHubIcon,
+    hoverClass: 'hover:border-slate-400/50 hover:bg-slate-500/10',
+  },
 };
 
 export function SocialAuthButton({
@@ -60,54 +69,83 @@ export function SocialAuthButton({
   isLoading: externalLoading,
   className,
 }: SocialAuthButtonProps) {
-  const { label, icon: Icon } = providerConfig[provider];
+  const { label, icon: Icon, hoverClass } = providerConfig[provider];
   const [isPending, setIsPending] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const isDisabled = isPending || externalLoading;
+  const isDisabled = isPending || !!externalLoading;
 
   async function handleClick() {
-    console.log("========== OAuth Debug ==========");
-    console.log("CLICKED");
-    console.log("Provider:", provider);
+    if (isDisabled) return;
 
-    if (isDisabled) {
-      console.log("Button is disabled");
-      return;
-    }
-
+    setError(null);
     setIsPending(true);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    try {
+      // NEXT_PUBLIC_API_URL must be set to http://localhost:3001/api (local) 
+      // or https://monoserver-nmp0.onrender.com/api (production)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
-    console.log("NEXT_PUBLIC_API_URL:", apiUrl);
+      if (!apiUrl) {
+        console.error('[SocialAuthButton] NEXT_PUBLIC_API_URL is not defined');
+        setError('Configuration error. Please contact support.');
+        setIsPending(false);
+        return;
+      }
 
-    if (!apiUrl) {
-      console.error("NEXT_PUBLIC_API_URL is not defined");
-      throw new Error("NEXT_PUBLIC_API_URL is not defined");
+      // Construct the redirect URL: {apiUrl}/auth/{provider}
+      // e.g., http://localhost:3001/api/auth/google
+      const redirectUrl = `${apiUrl}/auth/${provider}`;
+
+      console.log('[SocialAuthButton] OAuth redirect:', { provider, redirectUrl });
+
+      // Hard redirect — browser follows the OAuth flow
+      window.location.href = redirectUrl;
+
+      // Keep spinner going during redirect
+      // (setIsPending(false) NOT called — page navigates away)
+    } catch (err) {
+      console.error('[SocialAuthButton] Error during OAuth redirect:', err);
+      setError('Something went wrong. Please try again.');
+      setIsPending(false);
     }
-
-    const redirectUrl = `${apiUrl}/auth/${provider}`;
-
-    console.log("Redirect URL:", redirectUrl);
-
-    window.location.href = redirectUrl;
   }
 
   return (
-    <button
-      id={`social-auth-${provider}-btn`}
-      type="button"
-      disabled={isDisabled}
-      onClick={handleClick}
-      className={cn(
-        'flex w-full items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-800/60 px-4 py-3 text-sm font-medium text-slate-200 transition-colors',
-        'hover:bg-slate-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 active:bg-slate-700',
-        'disabled:pointer-events-none disabled:opacity-50',
-        className,
+    <div className="w-full">
+      <button
+        id={`social-auth-${provider}-btn`}
+        type="button"
+        disabled={isDisabled}
+        onClick={handleClick}
+        aria-label={label}
+        aria-busy={isPending}
+        className={cn(
+          'flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3.5 text-sm font-medium text-slate-200',
+          'transition-all duration-200',
+          hoverClass,
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
+          'active:scale-[0.98]',
+          'disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed',
+          className,
+        )}
+      >
+        {isPending ? (
+          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+        ) : (
+          <Icon />
+        )}
+        <span>{isPending ? 'Redirecting…' : label}</span>
+      </button>
+
+      {error && (
+        <p
+          role="alert"
+          className="mt-2 text-xs text-red-400 text-center"
+        >
+          {error}
+        </p>
       )}
-    >
-      {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Icon />}
-      {isPending ? 'Redirecting…' : label}
-    </button>
+    </div>
   );
 }
