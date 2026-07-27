@@ -2,6 +2,7 @@ services:
   - type: web
     name: bamblu-api
     runtime: node
+    plan: free
 
     buildCommand: |
       corepack prepare yarn@4.5.3 --activate
@@ -9,18 +10,39 @@ services:
 
       cd apps/api
 
-      echo "===== Current directory ====="
-      pwd
-
-      echo "===== Before prisma generate ====="
-      find src/generated -maxdepth 2 -type f || true
-
+      echo "===== Running Prisma generate ====="
       npx prisma generate
 
-      echo "===== After prisma generate ====="
-      find src/generated -maxdepth 2 -type f || true
+      echo "===== Running Prisma migrate deploy ====="
+      npx prisma migrate deploy
 
-      echo "===== Building ====="
+      echo "===== Building NestJS ====="
       yarn build
 
     startCommand: node dist/main.js
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: WEB_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: CODEFORCES_API_KEY
+        sync: false
+      - key: CODEFORCES_API_SECRET
+        sync: false
