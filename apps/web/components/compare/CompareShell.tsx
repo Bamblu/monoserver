@@ -175,7 +175,11 @@ export function CompareShell({ user1 }: CompareShellProps) {
   const { profile: user2Profile, isLoading: profileLoading, error: profileError } =
     useCompareProfile(selectedUsername);
 
-  const user1Profile = React.useMemo(() => adaptUser1(user1), [user1]);
+  const { profile: resolvedUser1Profile } = useCompareProfile(user1.username);
+  const user1Profile = React.useMemo(() => {
+    if (resolvedUser1Profile) return resolvedUser1Profile;
+    return adaptUser1(user1);
+  }, [resolvedUser1Profile, user1]);
 
   // Load recent searches on mount
   React.useEffect(() => {

@@ -63,7 +63,7 @@ async function resolveBambluUser(username: string): Promise<CompareProfile | nul
 
   if (!connection) return null;
 
-  const [user, ghStatsRow, cfStatsRow, userSkills] = await Promise.all([
+  const [user, ghStatsRow, cfStatsRow, userSkills, ghProfile, repos] = await Promise.all([
     db.query.users.findFirst({
       where: eq(users.id, connection.userId),
     }),
@@ -76,23 +76,29 @@ async function resolveBambluUser(username: string): Promise<CompareProfile | nul
     db.query.skills.findMany({
       where: eq(skills.userId, connection.userId),
     }),
+    getGitHubUserProfile(username).catch(() => null),
+    getGitHubUserRepos(username).catch(() => []),
   ]);
 
   if (!user) return null;
 
-  // Build GitHub stats from DB
+  const ghLiveStats = ghProfile ? computeGitHubStats(ghProfile, repos) : null;
+
+  // Combine DB metrics (commits, streak) with live GitHub API metrics (repos, stars, followers, languages)
   const ghStats: GitHubStats = {
-    totalRepos: ghStatsRow?.totalRepos ?? 0,
-    totalStars: ghStatsRow?.totalStars ?? 0,
-    followers: 0, // not stored in DB yet; will enhance later
-    following: 0,
-    totalCommits: ghStatsRow?.totalCommits ?? 0,
+    totalRepos: ghProfile?.public_repos ?? ghStatsRow?.totalRepos ?? repos.length,
+    totalStars: ghLiveStats?.totalStars ?? ghStatsRow?.totalStars ?? 0,
+    followers: ghProfile?.followers ?? 0,
+    following: ghProfile?.following ?? 0,
+    totalCommits: ghStatsRow?.totalCommits ?? ghLiveStats?.totalCommits ?? 0,
     contributionStreak: ghStatsRow?.contributionStreak ?? 0,
-    topLanguages: (ghStatsRow?.topLanguages ?? []).map((l) => ({
-      language: l.language,
-      percentage: l.percentage,
-      count: Math.round(l.linesOfCode / 1500),
-    })),
+    topLanguages: (ghLiveStats?.topLanguages && ghLiveStats.topLanguages.length > 0)
+      ? ghLiveStats.topLanguages
+      : (ghStatsRow?.topLanguages ?? []).map((l) => ({
+          language: l.language,
+          percentage: l.percentage,
+          count: Math.round(l.linesOfCode / 1500),
+        })),
   };
 
   const cfStats: CodeforcesStats | null = cfStatsRow
@@ -112,12 +118,12 @@ async function resolveBambluUser(username: string): Promise<CompareProfile | nul
 
   return {
     login: username,
-    displayName: user.name,
-    avatarUrl: user.image ?? `https://avatars.githubusercontent.com/u/0`,
-    htmlUrl: `https://github.com/${username}`,
-    bio: null,
-    location: null,
-    website: null,
+    displayName: user.name ?? ghProfile?.name ?? null,
+    avatarUrl: ghProfile?.avatar_url ?? user.image ?? `https://avatars.githubusercontent.com/${username}`,
+    htmlUrl: ghProfile?.html_url ?? `https://github.com/${username}`,
+    bio: ghProfile?.bio ?? null,
+    location: ghProfile?.location ?? null,
+    website: ghProfile?.blog ?? null,
     isBambluUser: true,
     github: ghStats,
     codeforces: cfStats,

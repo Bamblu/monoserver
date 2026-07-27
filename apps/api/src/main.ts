@@ -5,8 +5,8 @@ import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // Set global prefix if needed
-  app.setGlobalPrefix('api');
+  // Set global prefix excluding root route so http://localhost:3001 redirects to web app
+  app.setGlobalPrefix('api', { exclude: ['/'] });
   
   // Enable CORS since this is an API
   app.enableCors({
