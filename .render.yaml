@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: bamblu-api
+    runtime: node
+    buildCommand: |
+      corepack prepare yarn@4.5.3 --activate
+      corepack yarn install --immutable
+      corepack yarn build
+    startCommand: corepack yarn workspace @bamblu/api start:prod

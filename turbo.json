@@ -4,7 +4,15 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": [
+        "DATABASE_URL",
+        "CODEFORCES_API_KEY",
+        "CODEFORCES_API_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GITHUB_CLIENT_ID",
+        "NEXT_PUBLIC_API_URL"
+      ]
     },
     "dev": {
       "cache": false,

@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# exit on error
 set -o errexit
 
-echo "Enabling Corepack for Yarn 4..."
-corepack enable
+echo "Using Yarn via Corepack..."
+corepack prepare yarn@4.5.3 --activate
 
 echo "Installing dependencies..."
 yarn install --immutable
