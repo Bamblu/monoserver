@@ -10,11 +10,17 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const WEB_URL = process.env.WEB_URL || 'http://localhost:3000';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// In production: cookie crosses from Render API to Vercel frontend.
+// Must use SameSite=none + Secure=true for cross-site cookie delivery.
+// In development: lax is fine (same host, different ports).
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  secure: IS_PROD,
+  sameSite: (IS_PROD ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  // domain: omit — let browser infer from response host
 };
 
 @Controller('auth')
@@ -174,10 +180,11 @@ export class AuthController {
 
   @Post('logout')
   async logout(@Res() res: Response) {
+    // Clear with same options used when setting the cookie
     res.clearCookie('auth_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: IS_PROD,
+      sameSite: IS_PROD ? 'none' : 'lax',
     });
     res.status(200).json({ success: true });
   }
