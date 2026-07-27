@@ -281,7 +281,7 @@ export default function OnboardingPage() {
             heading="Connect your GitHub"
             description="We'll pull your commits, repos, and contribution activity automatically."
             actionLabel="Connect GitHub"
-            actionHref={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/github?state=link`}
+            actionHref={`${process.env.NEXT_PUBLIC_API_URL}/auth/github?state=link`}
           />
         )}
 

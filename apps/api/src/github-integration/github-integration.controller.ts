@@ -31,7 +31,7 @@ export class GithubIntegrationController {
   @UseGuards(JwtAuthGuard)
   async connect(@Res() res: Response) {
     const clientId = process.env.GITHUB_CLIENT_ID;
-    const redirectUri = `${process.env.API_URL || 'http://localhost:3001'}/api/github-integration/callback`;
+    const redirectUri = `${process.env.API_URL}/api/github-integration/callback`;
     const scope = 'public_repo,read:user,user:email';
 
     const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`;
@@ -42,7 +42,7 @@ export class GithubIntegrationController {
    * GitHub OAuth callback for account linking.
    *
    * The browser will still have the auth_token cookie because GitHub
-   * redirects back to our API domain (localhost:3001) in development.
+   * redirects back to our API domain in development.
    * We read and verify the JWT manually here because @UseGuards(JwtAuthGuard)
    * would reject the request if passport can't find the cookie in this context.
    */

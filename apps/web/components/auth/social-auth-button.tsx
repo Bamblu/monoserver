@@ -62,8 +62,13 @@ export function SocialAuthButton({ provider, callbackUrl, isLoading: externalLoa
   async function handleClick() {
     if (isDisabled) return;
     setIsPending(true);
-    // Redirect to NestJS API
-    window.location.href = `http://localhost:3001/api/auth/${provider}`;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+if (!apiUrl) {
+  throw new Error("NEXT_PUBLIC_API_URL is not defined");
+}
+
+window.location.href = `${apiUrl}/auth/${provider}`;
   }
 
   return (
