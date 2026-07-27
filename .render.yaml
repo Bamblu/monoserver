@@ -5,5 +5,7 @@ services:
     buildCommand: |
       corepack prepare yarn@4.5.3 --activate
       corepack yarn install --immutable
-      corepack yarn build
+      cd apps/api
+      npx prisma generate
+      yarn build
     startCommand: corepack yarn workspace @bamblu/api start:prod
