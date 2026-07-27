@@ -37,8 +37,6 @@ function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 type Provider = 'google' | 'github';
 
 interface SocialAuthButtonProps {
@@ -48,27 +46,51 @@ interface SocialAuthButtonProps {
   className?: string;
 }
 
-const providerConfig: Record<Provider, { label: string; icon: React.FC<{ className?: string }> }> = {
+const providerConfig: Record<
+  Provider,
+  { label: string; icon: React.FC<{ className?: string }> }
+> = {
   google: { label: 'Continue with Google', icon: GoogleIcon },
   github: { label: 'Continue with GitHub', icon: GitHubIcon },
 };
 
-export function SocialAuthButton({ provider, callbackUrl, isLoading: externalLoading, className }: SocialAuthButtonProps) {
+export function SocialAuthButton({
+  provider,
+  callbackUrl,
+  isLoading: externalLoading,
+  className,
+}: SocialAuthButtonProps) {
   const { label, icon: Icon } = providerConfig[provider];
   const [isPending, setIsPending] = React.useState(false);
 
   const isDisabled = isPending || externalLoading;
 
   async function handleClick() {
-    if (isDisabled) return;
+    console.log("========== OAuth Debug ==========");
+    console.log("CLICKED");
+    console.log("Provider:", provider);
+
+    if (isDisabled) {
+      console.log("Button is disabled");
+      return;
+    }
+
     setIsPending(true);
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
-if (!apiUrl) {
-  throw new Error("NEXT_PUBLIC_API_URL is not defined");
-}
+    console.log("NEXT_PUBLIC_API_URL:", apiUrl);
 
-window.location.href = `${apiUrl}/auth/${provider}`;
+    if (!apiUrl) {
+      console.error("NEXT_PUBLIC_API_URL is not defined");
+      throw new Error("NEXT_PUBLIC_API_URL is not defined");
+    }
+
+    const redirectUrl = `${apiUrl}/auth/${provider}`;
+
+    console.log("Redirect URL:", redirectUrl);
+
+    window.location.href = redirectUrl;
   }
 
   return (
@@ -89,4 +111,3 @@ window.location.href = `${apiUrl}/auth/${provider}`;
     </button>
   );
 }
-
