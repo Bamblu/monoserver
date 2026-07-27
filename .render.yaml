@@ -5,7 +5,16 @@ services:
     buildCommand: |
       corepack prepare yarn@4.5.3 --activate
       corepack yarn install --immutable
+
       cd apps/api
+
+      echo "=== Before generate ==="
+      ls -R src/generated || true
+
       npx prisma generate
+
+      echo "=== After generate ==="
+      ls -R src/generated
+
       yarn build
-    startCommand: corepack yarn workspace @bamblu/api start:prod
+    startCommand: node apps/api/dist/main.js
