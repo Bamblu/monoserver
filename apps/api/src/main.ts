@@ -14,6 +14,13 @@ origin: process.env.WEB_URL,
   });
 
   // Enable cookie parser
+  console.log("typeof cookieParser:", typeof cookieParser);
+console.log("cookieParser value:", cookieParser);
+
+const cp = require("cookie-parser");
+console.log("typeof require(cookie-parser):", typeof cp);
+console.log("require(cookie-parser):", cp);
+
   app.use(cookieParser());
 
   const port = process.env.PORT || 3001;
