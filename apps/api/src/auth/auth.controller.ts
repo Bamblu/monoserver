@@ -1,4 +1,4 @@
-import { Controller, Get, Req, Res, UseGuards, Post, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Req, Res, UseGuards, Post } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { Request, Response } from 'express';
@@ -8,20 +8,30 @@ import { CryptoService } from '../crypto/crypto.service';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 
-const WEB_URL = process.env.WEB_URL || 'http://localhost:3000';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 const IS_PROD = process.env.NODE_ENV === 'production';
 
-// In production: cookie crosses from Render API to Vercel frontend.
-// Must use SameSite=none + Secure=true for cross-site cookie delivery.
-// In development: lax is fine (same host, different ports).
+// Cookie options for fallback direct API cookie setting
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: IS_PROD,
   sameSite: (IS_PROD ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  // domain: omit — let browser infer from response host
 };
+
+function getWebUrl(req?: Request): string {
+  if (process.env.WEB_URL) return process.env.WEB_URL;
+  if (req) {
+    const origin = req.get('origin') || req.get('referer');
+    if (origin) {
+      try {
+        const u = new URL(origin);
+        return u.origin;
+      } catch { }
+    }
+  }
+  return 'https://monoserver-nmp0.onrender.com';
+}
 
 @Controller('auth')
 export class AuthController {
@@ -30,7 +40,7 @@ export class AuthController {
     private readonly cryptoService: CryptoService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   // ─── Google OAuth ──────────────────────────────────────────────────────────
 
@@ -46,13 +56,27 @@ export class AuthController {
     const { user, provider } = await this.authService.validateOAuthLogin(req.user);
     const jwt = this.authService.generateJwt(user, provider);
 
+    // Set cookie on API response (fallback)
     res.cookie('auth_token', jwt, COOKIE_OPTIONS);
 
-    const destination = this.authService.isOnboardingComplete(user, provider)
-      ? `${WEB_URL}/dashboard`
-      : `${WEB_URL}/onboarding`;
+    const targetPath = this.authService.isOnboardingComplete(user, provider)
+      ? '/dashboard'
+      : '/onboarding';
 
-    res.redirect(destination);
+    const webUrl = getWebUrl(req);
+    const callbackUrl = new URL('/api/auth/callback', webUrl);
+    callbackUrl.searchParams.set('token', jwt);
+    callbackUrl.searchParams.set('destination', targetPath);
+
+    console.log('[Google OAuth Callback]', {
+      userId: user.id,
+      provider,
+      isOnboardingComplete: this.authService.isOnboardingComplete(user, provider),
+      targetPath,
+      redirectingTo: callbackUrl.toString(),
+    });
+
+    return res.redirect(callbackUrl.toString());
   }
 
   // ─── GitHub OAuth (Unified Login & Account Linking) ───────────────────────
@@ -68,20 +92,20 @@ export class AuthController {
   async githubAuthRedirect(@Req() req: Request, @Res() res: Response) {
     const state = req.query.state as string;
     const githubUser = req.user as any;
+    const webUrl = getWebUrl(req);
 
     if (state === 'link') {
       // ─── GitHub Account Linking Flow ───────────────────────────────────────
-      // Read current JWT from cookies to verify authenticated user
       const token = req.cookies?.['auth_token'];
       if (!token) {
-        return res.redirect(`${WEB_URL}/login?error=session_expired`);
+        return res.redirect(`${webUrl}/login?error=session_expired`);
       }
 
       let payload: any;
       try {
         payload = this.jwtService.verify(token, { secret: JWT_SECRET });
       } catch {
-        return res.redirect(`${WEB_URL}/login?error=session_expired`);
+        return res.redirect(`${webUrl}/login?error=session_expired`);
       }
 
       const userId = payload.sub;
@@ -92,7 +116,7 @@ export class AuthController {
       });
 
       if (existingConnection && existingConnection.userId !== userId) {
-        return res.redirect(`${WEB_URL}/onboarding?error=duplicate_github`);
+        return res.redirect(`${webUrl}/onboarding?error=duplicate_github`);
       }
 
       // Encrypt the access token for secure DB storage
@@ -124,11 +148,21 @@ export class AuthController {
       });
 
       const hasCf = !!updatedUser?.codeforcesHandle;
-      const destination = hasCf
-        ? `${WEB_URL}/dashboard`
-        : `${WEB_URL}/onboarding?success=github_connected`;
+      const targetPath = hasCf
+        ? '/dashboard'
+        : '/onboarding?success=github_connected';
 
-      return res.redirect(destination);
+      const callbackUrl = new URL('/api/auth/callback', webUrl);
+      callbackUrl.searchParams.set('token', token);
+      callbackUrl.searchParams.set('destination', targetPath);
+
+      console.log('[GitHub Account Linking Callback]', {
+        userId,
+        targetPath,
+        redirectingTo: callbackUrl.toString(),
+      });
+
+      return res.redirect(callbackUrl.toString());
     } else {
       // ─── GitHub Authentication (Login) Flow ───────────────────────────────
       const { user, provider } = await this.authService.validateOAuthLogin(githubUser);
@@ -162,11 +196,23 @@ export class AuthController {
         include: { githubConnections: true },
       });
 
-      const destination = this.authService.isOnboardingComplete(updatedUser, provider)
-        ? `${WEB_URL}/dashboard`
-        : `${WEB_URL}/onboarding`;
+      const targetPath = this.authService.isOnboardingComplete(updatedUser, provider)
+        ? '/dashboard'
+        : '/onboarding';
 
-      return res.redirect(destination);
+      const callbackUrl = new URL('/api/auth/callback', webUrl);
+      callbackUrl.searchParams.set('token', jwt);
+      callbackUrl.searchParams.set('destination', targetPath);
+
+      console.log('[GitHub OAuth Login Callback]', {
+        userId: user.id,
+        provider,
+        isOnboardingComplete: this.authService.isOnboardingComplete(updatedUser, provider),
+        targetPath,
+        redirectingTo: callbackUrl.toString(),
+      });
+
+      return res.redirect(callbackUrl.toString());
     }
   }
 

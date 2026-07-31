@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: 'Compare Developers — Bamblu' };
 
 export default async function ComparePage() {
   const session = await auth();
-  if (!session) redirect('/login');
+  if (!session) redirect('/login?error=session_expired');
 
   const userId = session.id;
 

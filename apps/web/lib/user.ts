@@ -7,17 +7,29 @@ export async function getUser() {
   if (!token) return null;
 
   try {
-   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+    let baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://monoserver-nmp0.onrender.com/api';
+    // Defensively ensure /api suffix if the env var was set to the root domain
+    if (!baseUrl.endsWith('/api') && !baseUrl.includes('localhost')) {
+      baseUrl = `${baseUrl.replace(/\/$/, '')}/api`;
+    }
+
+    const endpoint = `${baseUrl}/auth/me`;
+    
+    const res = await fetch(endpoint, {
       headers: {
         Cookie: `auth_token=${token}`,
       },
       cache: 'no-store',
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error('[getUser] Backend returned error:', res.status, res.statusText, 'Endpoint:', endpoint);
+      return null;
+    }
 
     return res.json();
-  } catch {
+  } catch (error) {
+    console.error('[getUser] Fetch threw an error:', error);
     return null;
   }
 }

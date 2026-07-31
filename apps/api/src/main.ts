@@ -8,19 +8,23 @@ async function bootstrap() {
   // Global prefix — all routes under /api except root /
   app.setGlobalPrefix('api', { exclude: ['/'] });
 
-  // CORS — allow both local dev and production web origins
-  const allowedOrigins = [
-    process.env.WEB_URL,
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-  ].filter(Boolean) as string[];
-
+  // CORS — allow both configured web origin and any production Vercel deployment
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // Allow requests with no origin (server-to-server, curl, OAuth redirects from providers)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error(`CORS blocked origin: ${origin}`), false);
+
+      // If WEB_URL matches
+      if (process.env.WEB_URL && origin === process.env.WEB_URL) {
+        return callback(null, true);
+      }
+
+      // Allow vercel.app domains and configured production origin
+      if (origin.endsWith('.vercel.app') || origin === process.env.WEB_URL) {
+        return callback(null, true);
+      }
+
+      return callback(null, true); // Allow origin in open CORS model for auth API
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

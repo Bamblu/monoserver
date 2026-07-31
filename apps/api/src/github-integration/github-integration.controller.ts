@@ -6,15 +6,27 @@ import {
   Res,
   UseGuards,
   BadRequestException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { GithubIntegrationService } from './github-integration.service';
 import { Request, Response } from 'express';
 
-const WEB_URL = process.env.WEB_URL || 'http://localhost:3000';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
+
+function getWebUrl(req?: Request): string {
+  if (process.env.WEB_URL) return process.env.WEB_URL;
+  if (req) {
+    const origin = req.get('origin') || req.get('referer');
+    if (origin) {
+      try {
+        const u = new URL(origin);
+        return u.origin;
+      } catch {}
+    }
+  }
+  return 'https://monoserver-nmp0.onrender.com';
+}
 
 @Controller('github-integration')
 export class GithubIntegrationController {
@@ -40,11 +52,6 @@ export class GithubIntegrationController {
 
   /**
    * GitHub OAuth callback for account linking.
-   *
-   * The browser will still have the auth_token cookie because GitHub
-   * redirects back to our API domain in development.
-   * We read and verify the JWT manually here because @UseGuards(JwtAuthGuard)
-   * would reject the request if passport can't find the cookie in this context.
    */
   @Get('callback')
   async callback(
@@ -52,6 +59,8 @@ export class GithubIntegrationController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    const webUrl = getWebUrl(req);
+
     if (!code) {
       throw new BadRequestException('No authorization code provided');
     }
@@ -59,7 +68,7 @@ export class GithubIntegrationController {
     // Read JWT from cookie
     const token = req.cookies?.['auth_token'];
     if (!token) {
-      return res.redirect(`${WEB_URL}/login?error=session_expired`);
+      return res.redirect(`${webUrl}/login?error=session_expired`);
     }
 
     // Verify JWT using NestJS JwtService
@@ -67,7 +76,7 @@ export class GithubIntegrationController {
     try {
       payload = this.jwtService.verify(token, { secret: JWT_SECRET });
     } catch {
-      return res.redirect(`${WEB_URL}/login?error=session_expired`);
+      return res.redirect(`${webUrl}/login?error=session_expired`);
     }
 
     const userId = payload.sub;
@@ -76,17 +85,21 @@ export class GithubIntegrationController {
       await this.githubService.handleCallback(code, userId);
     } catch (err: any) {
       console.error('[github-integration/callback] error:', err.message);
-      return res.redirect(`${WEB_URL}/onboarding?error=github_failed`);
+      return res.redirect(`${webUrl}/onboarding?error=github_failed`);
     }
 
     // After GitHub connect, check if the user also has a CF handle
     const user = await this.githubService.getUserWithConnections(userId);
     const hasCf = !!(user as any)?.codeforcesHandle;
 
-    const destination = hasCf
-      ? `${WEB_URL}/dashboard`
-      : `${WEB_URL}/onboarding?success=github_connected`;
+    const targetPath = hasCf
+      ? '/dashboard'
+      : '/onboarding?success=github_connected';
 
-    res.redirect(destination);
+    const callbackUrl = new URL('/api/auth/callback', webUrl);
+    callbackUrl.searchParams.set('token', token);
+    callbackUrl.searchParams.set('destination', targetPath);
+
+    return res.redirect(callbackUrl.toString());
   }
 }

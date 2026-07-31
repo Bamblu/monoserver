@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: 'Dashboard — Bamblu' };
 
 export default async function DashboardPage() {
   const session = await auth();
-  if (!session) redirect('/login');
+  if (!session) redirect('/login?error=session_expired');
   const userId = session.id;
 
   const [ghStats, cfStats, userSkills, userRow] = await Promise.all([

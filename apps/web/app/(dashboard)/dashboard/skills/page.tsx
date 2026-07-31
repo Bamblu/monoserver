@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: 'Skills — Bamblu' };
 
 export default async function SkillsPage() {
   const session = await auth();
-  if (!session) redirect('/login');
+  if (!session) redirect('/login?error=session_expired');
 
   const userId = session.id;
 

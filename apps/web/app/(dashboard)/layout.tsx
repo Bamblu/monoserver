@@ -9,7 +9,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session) redirect('/login');
+  if (!session) redirect('/login?error=session_expired');
 
   // Extract GitHub username if connected
   const githubUsername = session.githubConnections?.[0]?.username ?? null;

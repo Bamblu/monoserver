@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: 'Activity — Bamblu' };
 
 export default async function ActivityPage() {
   const session = await auth();
-  if (!session) redirect('/login');
+  if (!session) redirect('/login?error=session_expired');
 
   const userId = session.id;
 
